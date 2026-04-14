@@ -1,22 +1,73 @@
+import json
 from flask import Flask, render_template, request
 from scanner import escanear
 from analyzer import analizar
+from flask import jsonify
+from database import conectar
+from database import crear_tablas
+
+crear_tablas()
+
 
 app = Flask(__name__)
 
+@app.route("/alertas")
+def obtener_alertas():
+    import json
+    try:
+        with open("app/alerts.json", "r") as f:
+            conn = conectar()
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT mensaje FROM alertas ORDER BY fecha DESC LIMIT 10")
+            alertas = [row[0] for row in cursor.fetchall()]
+            
+
+            cursor.execute("SELECT ip, fecha FROM escaneos ORDER BY fecha DESC LIMIT 5")
+            historial = cursor.fetchall()
+
+
+            conn.close()
+
+
+    except:
+        alertas = []
+
+    return jsonify(alertas)
+
 @app.route("/", methods=["GET", "POST"])
 def index():
+ if request.method == "POST":
+    ip = request.form["ip"]
 
-    if request.method == "POST":
-        ip = request.form["ip"].strip()
-        scan = escanear(ip)
-        riesgos, recomendaciones = analizar(scan)
+    scan = escanear(ip)
+    riesgos, recomendaciones = analizar(scan)
 
-        alto = sum(1 for r in riesgos if "🔴" in r)
-        medio = sum(1 for r in riesgos if "🟡" in r or "🟠" in r)
-        bajo = sum(1 for r in riesgos if "🟢" in r)
+    # Guardar escaneo en la base de datos
+    conn = conectar()
+    cursor = conn.cursor()
 
-        return render_template(
+    cursor.execute(
+        "INSERT INTO escaneos (ip, riesgos) VALUES (?, ?)",
+        (ip, json.dumps(riesgos))
+    )
+
+    conn.commit()
+    conn.close()
+
+    # Contar riesgos por nivel
+    alto = sum(1 for r in riesgos if "🔴" in r)
+    medio = sum(1 for r in riesgos if "🟡" in r or "🟠" in r)
+    bajo = sum(1 for r in riesgos if "🟢" in r)
+
+        
+    try:
+            with open("app/alerts.json", "r") as f:
+                alertas = json.load(f)
+    except:
+            alertas = []
+
+    return render_template(
             "index.html",
             riesgos=riesgos,
             recomendaciones=recomendaciones,

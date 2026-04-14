@@ -48,13 +48,33 @@
 
     </div>
 
-    <!-- 📊 Gráfica -->
+    <!-- Gráfica de riesgos -->
     <div class="card">
         <h2>📊 Análisis de Riesgos</h2>
         <canvas id="graficaRiesgos"
             data-valores='{{ [alto, medio, bajo] | tojson }}'>
         </canvas>
     </div>
+
+    {% if alertas %}
+<div class="card">
+    <h2>🚨 Alertas recientes</h2>
+    <ul id="lista-alertas">
+        {% for alerta in alertas %}
+            <li style="color:#ef4444;">{{ alerta }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>📜 Historial</h2>
+    <ul>
+        {% for h in historial %}
+            <li>{{ h[0] }} - {{ h[1] }}</li>
+        {% endfor %}
+    </ul>
+</div>
 
     {% endif %}
 

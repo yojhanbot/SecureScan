@@ -43,4 +43,29 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function actualizarAlertas() {
+
+    fetch("/alertas")
+        .then(res => res.json())
+        .then(data => {
+
+            const lista = document.getElementById("lista-alertas");
+
+            if (!lista) return;
+
+            lista.innerHTML = "";
+
+            data.forEach(alerta => {
+                const li = document.createElement("li");
+                li.textContent = alerta;
+                li.style.color = "#ef4444";
+                lista.appendChild(li);
+            });
+
+        });
+}
+
+// cada 5 segundos 
+setInterval(actualizarAlertas, 5000);
+
 });
