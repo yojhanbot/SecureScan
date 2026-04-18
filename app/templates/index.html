@@ -1,87 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SecureScan Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<title>SecureScan</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
 
 <header>
-    🛡️ SecureScan Dashboard
+
+<div class="logo">🛡 SecureScan</div>
+
+<div class="user-box">
+<span>{{ session.get("usuario") }}</span>
+<span>{{ session.get("rol") }}</span>
+
+{% if session.get("rol") == "admin" %}
+<a href="/admin">Admin</a>
+{% endif %}
+
+<a href="/logout">Salir</a>
+</div>
+
 </header>
 
 <div class="container">
 
-    <form method="POST">
-        <input type="text" name="ip" placeholder="Ej: scanme.nmap.org" required>
-        <button type="submit">Escanear</button>
-    </form>
+{% if session.get("rol") == "admin" or session.get("rol") == "analista" %}
+<form method="POST" class="scan-box">
+<input type="text" name="ip" placeholder="Escanea IP o dominio">
+<button type="submit">Escanear</button>
+</form>
+{% endif %}
 
-    {% if riesgos %}
+<div class="grid">
 
-    <div class="grid">
-
-        <div class="card">
-            <h2>🔍 Riesgos</h2>
-            <ul>
-                {% for r in riesgos %}
-                    <li class="
-                        {% if '🔴' in r %}riesgo-alto
-                        {% elif '🟡' in r or '🟠' in r %}riesgo-medio
-                        {% else %}riesgo-bajo
-                        {% endif %}
-                    ">
-                        {{ r }}
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-
-        <div class="card">
-            <h2>💡 Recomendaciones</h2>
-            <ul>
-                {% for rec in recomendaciones %}
-                    <li>{{ rec }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-
-    </div>
-
-    <!-- Gráfica de riesgos -->
-    <div class="card">
-        <h2>📊 Análisis de Riesgos</h2>
-        <canvas id="graficaRiesgos"
-            data-valores='{{ [alto, medio, bajo] | tojson }}'>
-        </canvas>
-    </div>
-
-    {% if alertas %}
+{% if riesgos %}
 <div class="card">
-    <h2>🚨 Alertas recientes</h2>
-    <ul id="lista-alertas">
-        {% for alerta in alertas %}
-            <li style="color:#ef4444;">{{ alerta }}</li>
-        {% endfor %}
-    </ul>
+<h2>Riesgos Detectados</h2>
+<ul>
+{% for r in riesgos %}
+<li class="
+{% if '🔴' in r %}riesgo-alto
+{% elif '🟡' in r or '🟠' in r %}riesgo-medio
+{% else %}riesgo-bajo
+{% endif %}
+">
+{{ r }}
+</li>
+{% endfor %}
+</ul>
+</div>
+{% endif %}
+
+{% if recomendaciones %}
+<div class="card">
+<h2>Recomendaciones</h2>
+<ul>
+{% for rec in recomendaciones %}
+<li>{{ rec }}</li>
+{% endfor %}
+</ul>
 </div>
 {% endif %}
 
 <div class="card">
-    <h2>📜 Historial</h2>
-    <ul>
-        {% for h in historial %}
-            <li>{{ h[0] }} - {{ h[1] }}</li>
-        {% endfor %}
-    </ul>
+<h2>Alertas</h2>
+<ul>
+{% for alerta in alertas %}
+<li class="riesgo-alto">{{ alerta }}</li>
+{% endfor %}
+</ul>
 </div>
 
-    {% endif %}
+<div class="card">
+<h2>Historial</h2>
+<ul>
+{% for h in historial %}
+<li>{{ h[0] }} - {{ h[1] }}</li>
+{% endfor %}
+</ul>
+</div>
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</div>
 
 </body>
 </html>

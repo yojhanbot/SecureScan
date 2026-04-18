@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Panel Admin</title>
+</head>
+<body style="font-family:Arial;background:#0f172a;color:white;padding:40px;">
+
+<h1>⚙️ Panel Administrativo</h1>
+
+<a href="/">⬅ Volver</a>
+<br><br>
+
+<h2>➕ Crear Usuario</h2>
+
+<form method="POST">
+    <input type="text" name="username" placeholder="Usuario" required>
+    <input type="text" name="password" placeholder="Clave" required>
+
+    <select name="rol">
+        <option value="admin">admin</option>
+        <option value="analista">analista</option>
+        <option value="auditor">auditor</option>
+    </select>
+
+    <button type="submit">Crear</button>
+</form>
+
+<hr>
+
+<h2>👥 Usuarios</h2>
+
+<table border="1" cellpadding="10">
+<tr>
+    <th>ID</th>
+    <th>Usuario</th>
+    <th>Rol</th>
+    <th>Acción</th>
+</tr>
+
+{% for u in usuarios %}
+<tr>
+    <td>{{ u[0] }}</td>
+    <td>{{ u[1] }}</td>
+    <td>{{ u[2] }}</td>
+    <td>
+        <a href="/eliminar_usuario/{{ u[0] }}">Eliminar</a>
+    </td>
+</tr>
+{% endfor %}
+
+</table>
+
+<hr>
+
+<h2>📜 Logs de actividad</h2>
+
+<table border="1" cellpadding="10">
+
+<tr>
+    <th>Usuario</th>
+    <th>Acción</th>
+    <th>Fecha</th>
+</tr>
+
+{% for log in logs %}
+<tr>
+    <td>{{ log[0] }}</td>
+    <td>{{ log[1] }}</td>
+    <td>{{ log[2] }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+</body>
+</html>

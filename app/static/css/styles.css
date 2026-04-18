@@ -1,69 +1,176 @@
-body {
-    font-family: Arial;
-    background: #0f172a;
-    color: white;
-    margin: 0;
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: 'Segoe UI', sans-serif;
 }
 
-header {
-    background: #020617;
-    padding: 20px;
-    text-align: center;
-    font-size: 24px;
+body{
+    background: linear-gradient(135deg,#0f172a,#020617,#111827);
+    color:white;
+    min-height:100vh;
 }
 
-.container {
-    padding: 30px;
-    text-align: center;
+/* HEADER */
+header{
+    padding:25px 50px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+    backdrop-filter: blur(15px);
 }
 
-input {
-    padding: 12px;
-    width: 300px;
-    border-radius: 8px;
-    border: none;
+.logo{
+    font-size:28px;
+    font-weight:700;
+    color:#38bdf8;
 }
 
-button {
-    padding: 12px 20px;
-    background: #22c55e;
-    border: none;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-left: 10px;
+.user-box{
+    display:flex;
+    gap:15px;
+    align-items:center;
 }
 
-.grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-top: 30px;
+.user-box a{
+    color:white;
+    text-decoration:none;
+    padding:10px 15px;
+    background:#1e293b;
+    border-radius:10px;
 }
 
-.card {
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 10px;
-    text-align: left;
+/* CONTAINER */
+.container{
+    width:95%;
+    max-width:1400px;
+    margin:auto;
+    padding:40px 0;
 }
 
-.riesgo-alto { color: #ef4444; }
-.riesgo-medio { color: #facc15; }
-.riesgo-bajo { color: #22c55e; }
-
-ul {
-    list-style: none;
-    padding: 0;
+/* FORM */
+.scan-box{
+    background:rgba(255,255,255,0.05);
+    padding:25px;
+    border-radius:20px;
+    display:flex;
+    gap:15px;
+    backdrop-filter:blur(20px);
+    margin-bottom:30px;
 }
 
-li {
-    margin: 10px 0;
+.scan-box input{
+    flex:1;
+    padding:15px;
+    border:none;
+    border-radius:12px;
+    background:#0f172a;
+    color:white;
+    font-size:16px;
 }
 
-canvas {
-    margin-top: 20px;
-    background: #1e293b;
-    padding: 10px;
-    border-radius: 10px;
+.scan-box button{
+    padding:15px 25px;
+    border:none;
+    border-radius:12px;
+    background:#06b6d4;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.scan-box button:hover{
+    transform:scale(1.05);
+}
+
+/* GRID */
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(350px,1fr));
+    gap:25px;
+}
+
+/* CARD */
+.card{
+    background:rgba(255,255,255,0.05);
+    padding:25px;
+    border-radius:20px;
+    backdrop-filter: blur(20px);
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.card h2{
+    margin-bottom:20px;
+    color:#38bdf8;
+}
+
+/* LISTAS */
+ul{
+    list-style:none;
+}
+
+li{
+    padding:10px;
+    margin-bottom:8px;
+    border-radius:10px;
+}
+
+/* Riesgos */
+.riesgo-alto{
+    background:#7f1d1d;
+    color:#fecaca;
+}
+
+.riesgo-medio{
+    background:#78350f;
+    color:#fde68a;
+}
+
+.riesgo-bajo{
+    background:#14532d;
+    color:#bbf7d0;
+}
+
+/* LOGIN */
+.login-page{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.login-box{
+    width:420px;
+    background:rgba(255,255,255,0.05);
+    padding:40px;
+    border-radius:25px;
+    backdrop-filter:blur(20px);
+}
+
+.login-box h1{
+    margin-bottom:25px;
+    color:#38bdf8;
+}
+
+.login-box input{
+    width:100%;
+    padding:15px;
+    margin-bottom:15px;
+    border:none;
+    border-radius:12px;
+    background:#0f172a;
+    color:white;
+}
+
+.login-box button{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:12px;
+    background:#06b6d4;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
 }

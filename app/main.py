@@ -1,90 +1,195 @@
 import json
-from flask import Flask, render_template, request
+
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from pdf_report import generar_pdf
 from scanner import escanear
 from analyzer import analizar
-from flask import jsonify
-from database import conectar
-from database import crear_tablas
-
-crear_tablas()
-
+from database import conectar, crear_tablas, crear_admin, guardar_log
 
 app = Flask(__name__)
+app.secret_key = "securescan_secret_key"
 
-@app.route("/alertas")
-def obtener_alertas():
-    import json
-    try:
-        with open("app/alerts.json", "r") as f:
-            conn = conectar()
-            cursor = conn.cursor()
-
-            cursor.execute("SELECT mensaje FROM alertas ORDER BY fecha DESC LIMIT 10")
-            alertas = [row[0] for row in cursor.fetchall()]
-            
-
-            cursor.execute("SELECT ip, fecha FROM escaneos ORDER BY fecha DESC LIMIT 5")
-            historial = cursor.fetchall()
+crear_tablas()
+crear_admin()
 
 
-            conn.close()
+# ==========================================
+# LOGIN
+# ==========================================
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "POST":
+
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = conectar()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT * FROM usuarios WHERE username=?",
+            (username,)
+        )
+
+        usuario = cursor.fetchone()
+        conn.close()
+
+        if usuario and check_password_hash(usuario[2], password):
+
+            session["usuario"] = usuario[1]
+            session["rol"] = usuario[3]
+
+            guardar_log(usuario[1], "Inició sesión")
+
+            return redirect(url_for("index"))
+
+    return render_template("login.html")
 
 
-    except:
-        alertas = []
+# ==========================================
+# LOGOUT
+# ==========================================
+@app.route("/logout")
+def logout():
 
-    return jsonify(alertas)
+    session.clear()
+    return redirect(url_for("login"))
 
-@app.route("/", methods=["GET", "POST"])
-def index():
- if request.method == "POST":
-    ip = request.form["ip"]
 
-    scan = escanear(ip)
-    riesgos, recomendaciones = analizar(scan)
+# ==========================================
+# PANEL ADMIN
+# ==========================================
+@app.route("/admin", methods=["GET", "POST"])
+def panel_admin():
 
-    # Guardar escaneo en la base de datos
+    if "usuario" not in session:
+        return redirect(url_for("login"))
+
+    if session["rol"] != "admin":
+        return "Acceso denegado"
+
     conn = conectar()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "INSERT INTO escaneos (ip, riesgos) VALUES (?, ?)",
-        (ip, json.dumps(riesgos))
-    )
+    if request.method == "POST":
 
+        username = request.form["username"]
+        password = request.form["password"]
+        rol = request.form["rol"]
+
+        password_hash = generate_password_hash(password)
+
+        cursor.execute(
+            "INSERT INTO usuarios (username,password,rol) VALUES (?,?,?)",
+            (username, password_hash, rol)
+        )
+
+        conn.commit()
+
+        guardar_log(session["usuario"], f"Creó usuario {username}")
+
+    cursor.execute("SELECT id, username, rol FROM usuarios")
+    usuarios = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT usuario, accion, fecha
+        FROM logs
+        ORDER BY fecha DESC
+        LIMIT 20
+    """)
+    logs = cursor.fetchall()
+
+    conn.close()
+
+    return render_template("admin.html", usuarios=usuarios, logs=logs)
+
+
+# ==========================================
+# ELIMINAR USUARIO
+# ==========================================
+@app.route("/eliminar_usuario/<int:id>")
+def eliminar_usuario(id):
+
+    if session["rol"] != "admin":
+        return "Acceso denegado"
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM usuarios WHERE id=?", (id,))
     conn.commit()
     conn.close()
 
-    # Contar riesgos por nivel
-    alto = sum(1 for r in riesgos if "🔴" in r)
-    medio = sum(1 for r in riesgos if "🟡" in r or "🟠" in r)
-    bajo = sum(1 for r in riesgos if "🟢" in r)
+    guardar_log(session["usuario"], f"Eliminó usuario {id}")
 
-        
-    try:
-            with open("app/alerts.json", "r") as f:
-                alertas = json.load(f)
-    except:
-            alertas = []
+    return redirect(url_for("panel_admin"))
 
-    return render_template(
-            "index.html",
-            riesgos=riesgos,
-            recomendaciones=recomendaciones,
-            alto=alto,
-            medio=medio,
-            bajo=bajo
+
+# ==========================================
+# DASHBOARD
+# ==========================================
+@app.route("/", methods=["GET", "POST"])
+def index():
+
+    if "usuario" not in session:
+        return redirect(url_for("login"))
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    riesgos = None
+    recomendaciones = None
+    alto = medio = bajo = 0
+    pdf = None
+
+    if request.method == "POST":
+
+        if session["rol"] not in ["admin", "analista"]:
+            return "No tienes permiso"
+
+        ip = request.form["ip"]
+
+        scan = escanear(ip)
+        riesgos, recomendaciones = analizar(scan)
+
+        pdf = generar_pdf(ip, riesgos, recomendaciones)
+
+        cursor.execute(
+            "INSERT INTO escaneos (ip, riesgos) VALUES (?,?)",
+            (ip, json.dumps(riesgos))
         )
 
-    # GET (cuando abres la página por primera vez)
+        conn.commit()
+
+        guardar_log(session["usuario"], f"Escaneó {ip}")
+
+        alto = sum(1 for r in riesgos if "🔴" in r)
+        medio = sum(1 for r in riesgos if "🟡" in r or "🟠" in r)
+        bajo = sum(1 for r in riesgos if "🟢" in r)
+
+    cursor.execute("SELECT mensaje FROM alertas ORDER BY fecha DESC LIMIT 10")
+    alertas = [x[0] for x in cursor.fetchall()]
+
+    cursor.execute("SELECT ip, fecha FROM escaneos ORDER BY fecha DESC LIMIT 5")
+    historial = cursor.fetchall()
+
+    conn.close()
+
     return render_template(
         "index.html",
-        riesgos=None,
-        recomendaciones=None,
-        alto=0,
-        medio=0,
-        bajo=0
+        riesgos=riesgos,
+        recomendaciones=recomendaciones,
+        alto=alto,
+        medio=medio,
+        bajo=bajo,
+        pdf=pdf,
+        alertas=alertas,
+        historial=historial
     )
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
