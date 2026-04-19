@@ -7,9 +7,12 @@ from pdf_report import generar_pdf
 from scanner import escanear
 from analyzer import analizar
 from database import conectar, crear_tablas, crear_admin, guardar_log
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 app.secret_key = "securescan_secret_key"
+
 
 crear_tablas()
 crear_admin()
@@ -189,6 +192,44 @@ def index():
         alertas=alertas,
         historial=historial
     )
+
+@app.route("/api/dashboard")
+def api_dashboard():
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT ip, fecha FROM escaneos ORDER BY fecha DESC LIMIT 5")
+    historial = cursor.fetchall()
+
+    cursor.execute("SELECT mensaje FROM alertas ORDER BY fecha DESC LIMIT 5")
+    alertas = [row[0] for row in cursor.fetchall()]
+
+    conn.close()
+
+    return jsonify({
+        "riesgos_criticos": 12,
+        "hosts": 84,
+        "score": 92,
+        "eventos": 134,
+        "historial": historial,
+        "alertas": alertas
+    })
+
+@app.route("/api/scan", methods=["POST"])
+def api_scan():
+
+    data = request.get_json()
+    ip = data["ip"]
+
+    resultado = escanear(ip)
+    riesgos, recomendaciones = analizar(resultado)
+
+    return jsonify({
+        "ip": ip,
+        "riesgos": riesgos,
+        "recomendaciones": recomendaciones
+    })
 
 
 if __name__ == "__main__":
