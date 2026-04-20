@@ -193,12 +193,48 @@ def index():
         historial=historial
     )
 
+
+# ==========================================
+# API
+# ==========================================
+
 @app.route("/api/dashboard")
 def api_dashboard():
-
     conn = conectar()
     cursor = conn.cursor()
 
+    # Total IPs únicas escaneadas
+    cursor.execute("""
+        SELECT COUNT(DISTINCT ip) as total
+        FROM escaneos
+    """)
+    hosts = cursor.fetchone()["total"] or 0
+
+    # Riesgos críticos
+    cursor.execute("""
+        SELECT COUNT(*) as total
+        FROM escaneos
+        WHERE riesgos LIKE '%🔴%'
+    """)
+    riesgos = cursor.fetchone()["total"] or 0
+
+    # Promedio score
+    cursor.execute("""
+        SELECT AVG(score) as promedio
+        FROM escaneos
+    """)
+    fila = cursor.fetchone()
+    score = int(fila["promedio"]) if fila["promedio"] else 0
+
+    # Eventos hoy
+    cursor.execute("""
+        SELECT COUNT(*) as total
+        FROM logs
+        WHERE DATE(fecha)=DATE('now','localtime')
+    """)
+    eventos = cursor.fetchone()["total"] or 0
+
+    # Historial y alertas
     cursor.execute("SELECT ip, fecha FROM escaneos ORDER BY fecha DESC LIMIT 5")
     historial = cursor.fetchall()
 
@@ -208,13 +244,18 @@ def api_dashboard():
     conn.close()
 
     return jsonify({
-        "riesgos_criticos": 12,
-        "hosts": 84,
-        "score": 92,
-        "eventos": 134,
+        "riesgos_criticos": riesgos,
+        "hosts": hosts,
+        "score": score,
+        "eventos": eventos,
         "historial": historial,
         "alertas": alertas
     })
+
+
+# ==========================================
+# SCAN
+# ==========================================
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
@@ -223,13 +264,91 @@ def api_scan():
     ip = data["ip"]
 
     resultado = escanear(ip)
+
+    puertos = []
+
+    for linea in resultado.split("\n"):
+        if "/tcp" in linea and "open" in linea:
+            puerto = linea.split("/")[0].strip()
+            puertos.append(puerto)
+
     riesgos, recomendaciones = analizar(resultado)
+
+    score = 100
+
+    for r in riesgos:
+        if "🔴" in r:
+            score -= 15
+        elif "🟡" in r or "🟠" in r:
+            score -= 8
+        else:
+            score -= 3
+
+    if score < 0:
+        score = 0
+
+    # GUARDAR EN SQLITE
+    conn = conectar()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO escaneos (ip, puertos, riesgos, score, usuario)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        ip,
+        ",".join(puertos),
+        " | ".join(riesgos),
+        score,
+        "admin"
+    ))
+
+    cursor.execute("""
+        INSERT INTO logs (usuario, accion)
+        VALUES (?, ?)
+    """, (
+        "admin",
+        f"Escaneo ejecutado a {ip}"
+    ))
+
+    conn.commit()
+    conn.close()
 
     return jsonify({
         "ip": ip,
         "riesgos": riesgos,
-        "recomendaciones": recomendaciones
+        "recomendaciones": recomendaciones,
+        "score": score,
+        "puertos": puertos
     })
+
+
+@app.route("/api/history")
+def api_history():
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT ip, score, puertos, fecha
+        FROM escaneos
+        ORDER BY id DESC
+        LIMIT 10
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    historial = []
+
+    for row in rows:
+        historial.append({
+            "ip": row["ip"],
+            "score": row["score"],
+            "puertos": row["puertos"],
+            "fecha": row["fecha"]
+        })
+
+    return jsonify(historial)
 
 
 if __name__ == "__main__":

@@ -1,39 +1,54 @@
 from werkzeug.security import generate_password_hash
 import sqlite3
 
+DB_PATH = "app/securescan.db"
+
+
 def conectar():
-    return sqlite3.connect("app/securescan.db")
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 
 def crear_tablas():
     conn = conectar()
     cursor = conn.cursor()
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS escaneos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ip TEXT,
-        fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-        riesgos TEXT
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS alertas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        mensaje TEXT,
-        fecha DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-
+    # Usuarios
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
-        password TEXT,
-        rol TEXT
+        password TEXT NOT NULL,
+        rol TEXT NOT NULL,
+        creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
+    # Escaneos reales
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS escaneos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT NOT NULL,
+        puertos TEXT,
+        riesgos TEXT,
+        score INTEGER DEFAULT 0,
+        usuario TEXT,
+        fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # Alertas
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS alertas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tipo TEXT DEFAULT 'general',
+        mensaje TEXT NOT NULL,
+        fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # Logs
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,8 +58,23 @@ def crear_tablas():
     )
     """)
 
+    # Hosts monitoreados
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS hosts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT UNIQUE,
+        estado TEXT DEFAULT 'online',
+        ultimo_check DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # Índices
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_escaneos_fecha ON escaneos(fecha)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_fecha ON logs(fecha)")
+
     conn.commit()
     conn.close()
+
 
 def crear_admin():
     conn = conectar()
@@ -67,15 +97,15 @@ def crear_admin():
     conn.commit()
     conn.close()
 
-def guardar_log(usuario, accion):
 
+def guardar_log(usuario, accion):
     conn = conectar()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "INSERT INTO logs (usuario, accion) VALUES (?, ?)",
-        (usuario, accion)
-    )
+    cursor.execute("""
+    INSERT INTO logs (usuario, accion)
+    VALUES (?, ?)
+    """, (usuario, accion))
 
     conn.commit()
     conn.close()
